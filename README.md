@@ -16,7 +16,8 @@ io.github.ol4vr.fan-monitor
 
 ## Current behavior
 
-- Polls `sensors -j` and the minimal NVIDIA query every 3 seconds; overlapping polls are suppressed.
+- Polls `sensors -j`, the minimal NVIDIA query, and the native fan-control status every 3 seconds; overlapping polls are suppressed.
+- Uses healthy `/run/omarchy-plus/fan-control/status.json` data as the authoritative commanded duty for motherboard fans 1–6.
 - Shows a bar badge whose color reflects the highest displayed temperature.
 - Opens a details popup with Hugin fan RPM, RTX 4090 aggregate fan percentage, and CPU, GPU, System, RAM, and NVMe temperatures.
 - Refreshes immediately when the details popup opens.
@@ -43,7 +44,7 @@ Supported data contracts:
 | `nvme` | Composite temperature, sorted by PCI identity |
 | NVIDIA `nvidia-smi` | GPU temperature and aggregate fan percentage; no control and no RPM claim |
 
-Fan Monitor only reads channel 7. It never writes pump or fan controls. Motherboard fan rows show RPM and the paired PWM1–PWM6 percentage. The GPU row uses NVIDIA's aggregate percentage and reads `Idle` when the driver reports 0%.
+Fan Monitor only reads channel 7. It never writes pump or fan controls. Motherboard fan rows show RPM and use the native controller's commanded percentage when its running status is healthy; otherwise they retain the read-only sensor percentage. The protected pump never receives a commanded percentage. The GPU row uses NVIDIA's aggregate percentage and reads `Idle` when the driver reports 0%.
 
 The Hugin fixture mirrors the live NCT6798D, four-DIMM SPD5118, CPU, and four-NVMe sensor shapes observed on 2026-08-16. The model accepts only the mapped NCT6798 `SYSTIN` reading; duplicate CPU inputs, unknown AUX inputs, zero-valued inputs, the observed 127°C artefact, and the currently unverified PCH input remain hidden.
 
@@ -53,13 +54,13 @@ See `docs/HUGIN_DISPLAY_POLICY.md` for measured acoustic evidence, the proposed 
 
 ## Security boundary
 
-Runtime collection is read-only. The application executes `sensors -j` and a minimal `nvidia-smi` temperature/fan query as the signed-in user.
+Runtime collection is read-only. The application executes `sensors -j`, a minimal `nvidia-smi` temperature/fan query, and `cat` for the world-readable native status JSON as the signed-in user.
 
 It does not use `sudo`, write hwmon controls, install packages, run services, contact a network endpoint, or change fan policy.
 
 Do not run `sensors-detect` solely for this application. Hardware detection is a separate reviewed host-administration action when a system does not already expose the required sensors.
 
-On Hugin, temporarily loading `nct6775` exposed the NCT6798D telemetry without an audible fan change. Persistent module loading remains a separate central Omarchy+ host-integration decision; this application neither loads the driver nor writes its PWM controls.
+On Hugin, central Omarchy+ host integration persistently loads `nct6775` and owns the privileged fan-control service. This application only consumes its mode-0644 runtime status; it neither loads the driver nor writes PWM controls.
 
 ## Requirements
 

@@ -191,6 +191,86 @@ function parseSensorsJson(raw) {
   }
 }
 
+function parseFanControlStatus(data) {
+  if (!isObject(data) || data.schema !== 1) return null
+  if (data.service_state !== "running" || data.control_mode !== "manual") return null
+  if (data.writes_performed !== true || data.snapshot_fresh !== true || data.error !== null)
+    return null
+  if (!isObject(data.controller) || data.controller.name !== "nct6798") return null
+  if (!isObject(data.policy) || !Array.isArray(data.channels) || data.channels.length !== 7)
+    return null
+
+  var duties = {}
+  var protectedFound = false
+
+  for (var i = 0; i < data.channels.length; i++) {
+    var channel = data.channels[i]
+    if (!isObject(channel)) return null
+    var index = finiteNumber(channel.index)
+    if (index === null || Math.floor(index) !== index) return null
+
+    if (index >= 1 && index <= 6) {
+      if (channel.role !== "controlled" || duties[index] !== undefined) return null
+      var duty = finiteNumber(channel.commanded_duty_percent)
+      var raw = finiteNumber(channel.commanded_pwm_raw)
+      var enable = finiteNumber(channel.pwm_enable)
+      if (duty === null || duty < 0 || duty > 100) return null
+      if (raw === null || raw < 0 || raw > 255 || enable !== 1) return null
+      duties[index] = Math.round(duty)
+    } else if (index === 7) {
+      if (protectedFound || channel.role !== "protected") return null
+      if (channel.commanded_duty_percent !== null || channel.commanded_pwm_raw !== null)
+        return null
+      protectedFound = true
+    } else {
+      return null
+    }
+  }
+
+  if (Object.keys(duties).length !== 6 || !protectedFound) return null
+
+  var policyDuty = finiteNumber(data.policy.duty_percent)
+  if (policyDuty === null || policyDuty < 0 || policyDuty > 100) return null
+
+  return {
+    duties: duties,
+    tierId: String(data.policy.tier_id || ""),
+    dutyPercent: Math.round(policyDuty)
+  }
+}
+
+function parseFanControlStatusJson(raw) {
+  try {
+    return parseFanControlStatus(JSON.parse(String(raw)))
+  } catch (error) {
+    return null
+  }
+}
+
+function mergeFanControlStatus(sensorData, controlData) {
+  var base = isObject(sensorData) ? sensorData : { fans: [], temps: [] }
+  var sourceFans = Array.isArray(base.fans) ? base.fans : []
+  var temps = Array.isArray(base.temps) ? base.temps.slice() : []
+  var fans = []
+
+  for (var i = 0; i < sourceFans.length; i++) {
+    var source = sourceFans[i]
+    var fan = {}
+    var keys = Object.keys(source)
+    for (var keyIndex = 0; keyIndex < keys.length; keyIndex++)
+      fan[keys[keyIndex]] = source[keys[keyIndex]]
+
+    if (controlData && isObject(controlData.duties) && fan.role === "fan" &&
+        controlData.duties[fan.channel] !== undefined) {
+      fan.percent = controlData.duties[fan.channel]
+      fan.percentSource = "native-controller"
+    }
+    fans.push(fan)
+  }
+
+  return { fans: fans, temps: temps }
+}
+
 function parseNvidiaCsv(raw) {
   var line = String(raw || "").trim().split(/\r?\n/)[0]
   if (!line) return null
@@ -311,6 +391,9 @@ if (typeof module !== "undefined") {
     parseSensors: parseSensors,
     parseSensorsJson: parseSensorsJson,
     parseNvidiaCsv: parseNvidiaCsv,
+    parseFanControlStatus: parseFanControlStatus,
+    parseFanControlStatusJson: parseFanControlStatusJson,
+    mergeFanControlStatus: mergeFanControlStatus,
     mergeGpuTelemetry: mergeGpuTelemetry,
     fanStopped: fanStopped,
     fanReadingText: fanReadingText,

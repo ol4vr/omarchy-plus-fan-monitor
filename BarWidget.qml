@@ -13,6 +13,7 @@ BarWidget {
 
   property var sensorData: ({ fans: [], temps: [] })
   property var gpuData: null
+  property var fanControlData: null
   property var fans: []
   property var temps: []
   property bool loaded: false
@@ -26,7 +27,8 @@ BarWidget {
   }
 
   function rebuildTelemetry() {
-    var merged = Model.mergeGpuTelemetry(sensorData, gpuData)
+    var withGpu = Model.mergeGpuTelemetry(sensorData, gpuData)
+    var merged = Model.mergeFanControlStatus(withGpu, fanControlData)
     fans = merged.fans
     temps = merged.temps
   }
@@ -34,6 +36,7 @@ BarWidget {
   function refresh() {
     if (!sensorsProc.running) sensorsProc.running = true
     if (!nvidiaProc.running) nvidiaProc.running = true
+    if (!fanControlProc.running) fanControlProc.running = true
   }
 
   function parseSensors(raw) {
@@ -46,6 +49,17 @@ BarWidget {
 
   function parseNvidia(raw) {
     gpuData = Model.parseNvidiaCsv(raw)
+    rebuildTelemetry()
+  }
+
+  function parseFanControl(raw) {
+    fanControlData = Model.parseFanControlStatusJson(raw)
+    rebuildTelemetry()
+  }
+
+  function clearFanControl() {
+    if (fanControlData === null) return
+    fanControlData = null
     rebuildTelemetry()
   }
 
@@ -68,6 +82,21 @@ BarWidget {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.parseNvidia(text)
+    }
+  }
+
+  Process {
+    id: fanControlProc
+    command: ["cat", "/run/omarchy-plus/fan-control/status.json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.parseFanControl(text)
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+    }
+    onExited: function(exitCode) {
+      if (exitCode !== 0) root.clearFanControl()
     }
   }
 

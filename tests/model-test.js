@@ -9,6 +9,8 @@ const Model = require("../Model.js")
 
 const fixturePath = path.join(__dirname, "fixtures", "hugin-nct6798.json")
 const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"))
+const controlFixturePath = path.join(__dirname, "fixtures", "hugin-fan-control-status.json")
+const controlFixture = JSON.parse(fs.readFileSync(controlFixturePath, "utf8"))
 const parsed = Model.parseSensors(fixture)
 
 assert.deepEqual(parsed.fans, [
@@ -56,6 +58,34 @@ assert.equal(Model.fanStopped(gpu.fan), false)
 assert.equal(Model.fanReadingText(gpu.fan, true), "Idle")
 assert.equal(Model.fanReadingText(parsed.fans[0], true), "967 RPM (44%)")
 assert.equal(Model.fanReadingText(parsed.fans[6], true), "2419 RPM")
+
+const controlStatus = Model.parseFanControlStatus(controlFixture)
+assert.deepEqual(controlStatus, {
+  duties: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10, 6: 10 },
+  tierId: "idle",
+  dutyPercent: 10
+})
+assert.deepEqual(Model.parseFanControlStatusJson(JSON.stringify(controlFixture)), controlStatus)
+assert.equal(Model.parseFanControlStatusJson("not json"), null)
+
+const controlled = Model.mergeFanControlStatus(merged, controlStatus)
+assert.equal(controlled.fans[0].percent, 10)
+assert.equal(controlled.fans[0].percentSource, "native-controller")
+assert.equal(controlled.fans[6].name, "GPU Fans")
+assert.equal(controlled.fans[6].percent, 0)
+assert.equal(controlled.fans[7].name, "AIO Pump")
+assert.equal(controlled.fans[7].percent, undefined)
+assert.equal(Model.fanReadingText(controlled.fans[0], true), "967 RPM (10%)")
+
+const failedControlFixture = JSON.parse(JSON.stringify(controlFixture))
+failedControlFixture.service_state = "failed"
+assert.equal(Model.parseFanControlStatus(failedControlFixture), null)
+const unsafePumpFixture = JSON.parse(JSON.stringify(controlFixture))
+unsafePumpFixture.channels[6].commanded_duty_percent = 100
+assert.equal(Model.parseFanControlStatus(unsafePumpFixture), null)
+const missingChannelFixture = JSON.parse(JSON.stringify(controlFixture))
+missingChannelFixture.channels.splice(5, 1)
+assert.equal(Model.parseFanControlStatus(missingChannelFixture), null)
 
 const tooltipLines = Model.fanTooltipText(merged.fans).split("\n")
 assert.equal(tooltipLines[0].trimEnd(), "Fan 1: 967 RPM (44%)")

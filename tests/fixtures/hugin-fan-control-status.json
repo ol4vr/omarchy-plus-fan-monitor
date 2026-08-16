@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "host": "hugin",
+  "service_state": "running",
+  "control_mode": "manual",
+  "writes_performed": true,
+  "snapshot_fresh": true,
+  "error": null,
+  "controller": {
+    "hwmon": "hwmon13",
+    "name": "nct6798"
+  },
+  "policy": {
+    "changed": false,
+    "duty_percent": 10,
+    "pending_direction": null,
+    "pending_elapsed_seconds": null,
+    "pending_required_seconds": null,
+    "pending_tier_id": null,
+    "pwm_raw": 26,
+    "reason": "steady",
+    "tier_id": "idle"
+  },
+  "channels": [
+    {
+      "index": 1,
+      "role": "controlled",
+      "commanded_duty_percent": 10,
+      "commanded_pwm_raw": 26,
+      "pwm_enable": 1,
+      "pwm_raw": 26,
+      "rpm": 254
+    },
+    {
+      "index": 2,
+      "role": "controlled",
+      "commanded_duty_percent": 10,
+      "commanded_pwm_raw": 26,
+      "pwm_enable": 1,
+      "pwm_raw": 26,
+      "rpm": 256
+    },
+    {
+      "index": 3,
+      "role": "controlled",
+      "commanded_duty_percent": 10,
+      "commanded_pwm_raw": 26,
+      "pwm_enable": 1,
+      "pwm_raw": 26,
+      "rpm": 255
+    },
+    {
+      "index": 4,
+      "role": "controlled",
+      "commanded_duty_percent": 10,
+      "commanded_pwm_raw": 26,
+      "pwm_enable": 1,
+      "pwm_raw": 26,
+      "rpm": 268
+    },
+    {
+      "index": 5,
+      "role": "controlled",
+      "commanded_duty_percent": 10,
+      "commanded_pwm_raw": 26,
+      "pwm_enable": 1,
+      "pwm_raw": 26,
+      "rpm": 252
+    },
+    {
+      "index": 6,
+      "role": "controlled",
+      "commanded_duty_percent": 10,
+      "commanded_pwm_raw": 26,
+      "pwm_enable": 1,
+      "pwm_raw": 26,
+      "rpm": 253
+    },
+    {
+      "index": 7,
+      "role": "protected",
+      "commanded_duty_percent": null,
+      "commanded_pwm_raw": null,
+      "pwm_enable": 5,
+      "pwm_raw": 255,
+      "rpm": 2419
+    }
+  ],
+  "temperature_source": {
+    "hwmon": "hwmon10",
+    "label": "Package id 0",
+    "name": "coretemp",
+    "temperature_c": 50.0
+  },
+  "updated_monotonic_seconds": 20361.488821248
+}
