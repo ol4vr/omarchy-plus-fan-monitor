@@ -9,7 +9,7 @@ import qs.Ui
 // and per-sensor temperatures (CPU package, board, NVMe).
 BarWidget {
   id: root
-  moduleName: "local.fan-monitor"
+  moduleName: "io.github.ol4vr.fan-monitor"
 
   property var fans: []
   property var temps: []

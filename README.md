@@ -1,46 +1,60 @@
 # Fan Monitor
 
-An [Omarchy](https://omarchy.com) bar-widget plugin that shows a live fan-speed and temperature badge in your bar. Polls `lm_sensors` every 30 seconds; click opens a popup with per-fan RPM and per-chip temperatures (CPU package, board sensors, NVMe).
+Fan Monitor is an Omarchy+ bar application that shows fan speed and temperature status. It retains the accepted upstream visual design while its runtime contract, sensor model, tests, and deployment lifecycle are adapted for Omarchy+.
 
 ![Fan Monitor widget in the bar](preview.png)
-*(Fan icon, far right)*
 
-## Features
+## Status
 
-- Live badge: normal color when cool, amber above 65°C, red above 80°C
-- Badge color adapts to whichever bar it is installed on
-- Popup with per-fan RPM — highlights stopped fans in red
-- Popup with per-sensor temperatures (CPU, board, NVMe)
-- Refreshes on popup open for instant feedback
-- 30-second background polling
+Owned development is in progress. This repository is not yet the accepted production source for Hugin.
 
-## Supported chips
+The permanent application ID is:
 
-| Chip | Data shown |
-|---|---|
-| `it8689` / `it87` | Fan speeds (RPM) + board temperatures |
-| `coretemp` | CPU package temperature |
-| `nvme` | NVMe composite temperature |
+```text
+io.github.ol4vr.fan-monitor
+```
 
-Other chips reported by `sensors -j` are silently ignored. Open an issue if your chip isn't listed.
+## Current behavior
+
+- Polls `sensors -j` every 30 seconds.
+- Shows a bar badge whose color reflects the highest displayed temperature.
+- Opens a details popup with fan RPM and CPU, board, and NVMe temperatures.
+- Refreshes immediately when the details popup opens.
+- Does not control fans.
+
+## Security boundary
+
+Runtime collection is read-only. The application executes `sensors -j` as the signed-in user.
+
+It does not use `sudo`, write hwmon controls, install packages, run services, contact a network endpoint, or change fan policy.
+
+Do not run `sensors-detect` solely for this application. Hardware detection is a separate reviewed host-administration action when a system does not already expose the required sensors.
 
 ## Requirements
 
-- [Omarchy](https://omarchy.com) with Quickshell
-- `lm_sensors` — install with `pacman -S lm_sensors`, then run `sudo sensors-detect`
+- Omarchy Quattro
+- `lm_sensors`
+- working sensor exposure through `sensors -j`
+- a Nerd Font supplied by the active Omarchy bar
 
-## Installation
+## Development ownership
 
+The authoritative source checkout on Hugin is:
+
+```text
+/home/ol4vr/Projects/omarchy-plus-apps/fan-monitor
 ```
-omarchy plugin add https://github.com/elynch303/fan-monitor.git
-```
 
-Then add it to your bar layout in `~/.config/omarchy/shell.json`:
+The central `/home/ol4vr/Projects/omarchy-plus` repository owns production commit pins, host selection, enablement, placement, and integration validation.
 
-```json
-{ "id": "io.github.elynch303.fan-monitor" }
-```
+Do not edit the live plugin directory as authoritative source. Development deployment and removal tooling will be added before the first live test.
+
+## Provenance
+
+Fan Monitor is derived from [`elynch303/fan-monitor`](https://github.com/elynch303/fan-monitor) at commit `0c0b45716517f50f668e4df51e725130ebde628e`.
+
+The fork preserves the upstream Git history, MIT license, copyright notice, and attribution. See `UPSTREAM.md` for the update policy.
 
 ## License
 
-MIT
+MIT. See `LICENSE`.
