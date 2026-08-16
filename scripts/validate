@@ -78,13 +78,16 @@ for line in lines:
         raise RuntimeError(f"runtime file is missing or unsafe: {value}")
     runtime_paths.append(value)
 
-for required_path in ("manifest.json", entry, "LICENSE", "README.md"):
+for required_path in ("manifest.json", entry, "Model.js", "LICENSE", "README.md"):
     if required_path not in runtime_paths:
         raise RuntimeError(f"required runtime file is not allowlisted: {required_path}")
 PY
 
 omarchy plugin validate "$repo"
 qmllint -I "$omarchy_path/shell" "$repo/BarWidget.qml" "$repo/Panel.qml"
+node "$repo/tests/model-test.js"
+grep -Fq '25–35% resonance band' "$repo/docs/HUGIN_DISPLAY_POLICY.md"
+grep -Fq 'Never write RTX 4090 fan controls.' "$repo/docs/HUGIN_DISPLAY_POLICY.md"
 bash -n "$repo/scripts/validate" "$repo/scripts/dev-deploy" "$repo/scripts/dev-remove"
 
 if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then

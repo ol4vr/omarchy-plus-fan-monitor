@@ -1,0 +1,48 @@
+{
+  "nct6798-isa-0290": {
+    "fan1": {
+      "fan1_input": 886.0
+    },
+    "fan2": {
+      "fan2_input": 876.0
+    },
+    "fan3": {
+      "fan3_input": 850.0
+    },
+    "fan4": {
+      "fan4_input": 886.0
+    },
+    "fan5": {
+      "fan5_input": 870.0
+    },
+    "fan6": {
+      "fan6_input": 862.0
+    },
+    "fan7": {
+      "fan7_input": 2406.0
+    },
+    "temp1": {
+      "temp1_input": 31.5
+    },
+    "temp2": {
+      "temp2_input": 127.0
+    }
+  },
+  "coretemp-isa-0000": {
+    "Package id 0": {
+      "temp1_input": 38.0,
+      "temp1_max": 100.0
+    }
+  },
+  "nvme-pci-0400": {
+    "Composite": {
+      "temp1_input": 42.9,
+      "temp1_max": 84.8
+    }
+  },
+  "acpitz-acpi-0": {
+    "temp1": {
+      "temp1_input": 27.8
+    }
+  }
+}

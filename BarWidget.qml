@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "Model.js" as Model
 
 // Bar host and read-only sensor collector. The nested Panel.qml owns the
 // details surface; this root forwards the lifecycle required by Quattro.
@@ -27,76 +28,11 @@ BarWidget {
   }
 
   function parseSensors(raw) {
-    try {
-      var data = JSON.parse(raw)
-      var newFans = []
-      var newTemps = []
-      var chips = Object.keys(data)
-
-      for (var ci = 0; ci < chips.length; ci++) {
-        var chip = chips[ci]
-        var chipData = data[chip]
-        if (typeof chipData !== "object" || chipData === null) continue
-        var skeys = Object.keys(chipData)
-
-        if (chip.indexOf("it8689") !== -1 || chip.indexOf("it87") !== -1) {
-          for (var si = 0; si < skeys.length; si++) {
-            var sname = skeys[si]
-            var sval = chipData[sname]
-            if (typeof sval !== "object" || sval === null) continue
-
-            if (sname.indexOf("fan") === 0) {
-              var fk = sname + "_input"
-              if (sval.hasOwnProperty(fk))
-                newFans.push({ name: sname, rpm: Math.round(sval[fk]) })
-            } else if (sname.indexOf("temp") === 0) {
-              var tk = sname + "_input"
-              if (sval.hasOwnProperty(tk)) {
-                var boardTemp = sval[tk]
-                if (boardTemp > -50 && boardTemp < 120)
-                  newTemps.push({ name: "Board " + sname.replace("temp", ""), value: boardTemp.toFixed(1) })
-              }
-            }
-          }
-        } else if (chip.indexOf("coretemp") !== -1) {
-          for (var coreIndex = 0; coreIndex < skeys.length; coreIndex++) {
-            var coreName = skeys[coreIndex]
-            if (coreName !== "Package id 0") continue
-            var coreValue = chipData[coreName]
-            if (typeof coreValue !== "object" || coreValue === null) continue
-            var coreKeys = Object.keys(coreValue)
-            for (var coreKeyIndex = 0; coreKeyIndex < coreKeys.length; coreKeyIndex++) {
-              if (coreKeys[coreKeyIndex].indexOf("_input") !== -1) {
-                newTemps.unshift({ name: "CPU", value: coreValue[coreKeys[coreKeyIndex]].toFixed(1) })
-                break
-              }
-            }
-          }
-        } else if (chip.indexOf("nvme") !== -1) {
-          for (var nvmeIndex = 0; nvmeIndex < skeys.length; nvmeIndex++) {
-            var nvmeName = skeys[nvmeIndex]
-            if (nvmeName !== "Composite") continue
-            var nvmeValue = chipData[nvmeName]
-            if (typeof nvmeValue !== "object" || nvmeValue === null) continue
-            var nvmeKeys = Object.keys(nvmeValue)
-            for (var nvmeKeyIndex = 0; nvmeKeyIndex < nvmeKeys.length; nvmeKeyIndex++) {
-              if (nvmeKeys[nvmeKeyIndex].indexOf("_input") !== -1) {
-                var nvmeTemp = nvmeValue[nvmeKeys[nvmeKeyIndex]]
-                if (nvmeTemp > -50 && nvmeTemp < 100)
-                  newTemps.push({ name: "NVMe " + chip.slice(-4), value: nvmeTemp.toFixed(1) })
-                break
-              }
-            }
-          }
-        }
-      }
-
-      fans = newFans
-      temps = newTemps
-      loaded = true
-    } catch (error) {
-      // Keep the last good values when a collection is incomplete.
-    }
+    var parsed = Model.parseSensorsJson(raw)
+    if (!parsed) return
+    fans = parsed.fans
+    temps = parsed.temps
+    loaded = true
   }
 
   Process {
@@ -136,8 +72,10 @@ BarWidget {
   }
 
   function badgeColor() {
-    if (worstTemp >= 80) return Color.urgent
-    if (worstTemp >= 65) return "#e8a33d"
+    var state = Model.temperatureState(worstTemp)
+    if (state === "elevated") return "#e8a33d"
+    if (state === "hot" || state === "critical" || state === "emergency")
+      return Color.urgent
     return root.primaryColor
   }
 

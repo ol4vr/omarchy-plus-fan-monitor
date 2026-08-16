@@ -1,4 +1,5 @@
 BarWidget.qml
+Model.js
 Panel.qml
 LICENSE
 README.md

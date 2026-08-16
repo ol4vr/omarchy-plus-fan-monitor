@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import qs.Commons
 import qs.Ui
+import "Model.js" as Model
 
 // Quattro-native details surface. Its content preserves the accepted
 // upstream Fan Monitor presentation while KeyboardPanel supplies focus,
@@ -26,8 +27,10 @@ Panel {
   }
 
   function tempColor(value) {
-    if (value >= 80) return Color.urgent
-    if (value >= 65) return "#e8a33d"
+    var state = Model.temperatureState(value)
+    if (state === "elevated") return "#e8a33d"
+    if (state === "hot" || state === "critical" || state === "emergency")
+      return Color.urgent
     return Color.popups.text
   }
 
