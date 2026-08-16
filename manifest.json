@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.ol4vr.fan-monitor",
   "name": "Fan Monitor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Olav Rorvik",
   "license": "MIT",
   "description": "Fan-speed and temperature status for Omarchy+ systems.",
@@ -10,7 +10,7 @@
     "bar-widget"
   ],
   "entryPoints": {
-    "barWidget": "FanMonitorWidget.qml"
+    "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Fan Monitor",

@@ -82,7 +82,7 @@ done < "$runtime_list"
 install -m 0644 "$marker_text" "$stage/.omarchy-plus-development"
 
 omarchy plugin validate "$stage"
-qmllint -I "$omarchy_path/shell" "$stage/FanMonitorWidget.qml"
+qmllint -I "$omarchy_path/shell" "$stage/BarWidget.qml" "$stage/Panel.qml"
 
 if [[ "$mode" == --check ]]; then
   echo "Fan Monitor development deployment check: PASS"

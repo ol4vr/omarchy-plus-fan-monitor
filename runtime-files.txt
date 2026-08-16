@@ -1,4 +1,5 @@
-FanMonitorWidget.qml
+BarWidget.qml
+Panel.qml
 LICENSE
 README.md
 UPSTREAM.md

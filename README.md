@@ -22,6 +22,12 @@ io.github.ol4vr.fan-monitor
 - Refreshes immediately when the details popup opens.
 - Does not control fans.
 
+## Quattro runtime contract
+
+`manifest.json` loads `BarWidget.qml`. The bar widget owns read-only sensor polling, badge state, and the bar button. It loads `Panel.qml` internally and forwards Quattro's open, close, toggle, Escape, focus, and bar-popup switching lifecycle.
+
+The panel preserves the accepted upstream Fan Monitor information hierarchy, colors, labels, fan rows, and temperature rows while using Omarchy's native `KeyboardPanel` surface.
+
 ## Security boundary
 
 Runtime collection is read-only. The application executes `sensors -j` as the signed-in user.

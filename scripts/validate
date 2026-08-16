@@ -34,7 +34,7 @@ if manifest["kinds"] != ["bar-widget"]:
     raise RuntimeError("Fan Monitor must declare only bar-widget")
 
 entry = manifest["entryPoints"].get("barWidget")
-if entry != "FanMonitorWidget.qml":
+if entry != "BarWidget.qml":
     raise RuntimeError("unexpected bar-widget entry point")
 
 entry_path = PurePosixPath(entry)
@@ -43,10 +43,14 @@ if entry_path.is_absolute() or ".." in entry_path.parts:
 if not (root / entry).is_file():
     raise RuntimeError("manifest entry point does not exist")
 
-widget = (root / entry).read_text(encoding="utf-8")
 module_line = f'moduleName: "{expected_id}"'
-if widget.count(module_line) != 1:
-    raise RuntimeError("QML moduleName does not match the manifest ID exactly once")
+for qml_name in ("BarWidget.qml", "Panel.qml"):
+    qml_path = root / qml_name
+    if not qml_path.is_file():
+        raise RuntimeError(f"required QML file is missing: {qml_name}")
+    qml = qml_path.read_text(encoding="utf-8")
+    if qml.count(module_line) != 1:
+        raise RuntimeError(f"{qml_name} moduleName does not match the manifest ID exactly once")
 
 symlinks = []
 for path in root.rglob("*"):
@@ -80,7 +84,7 @@ for required_path in ("manifest.json", entry, "LICENSE", "README.md"):
 PY
 
 omarchy plugin validate "$repo"
-qmllint -I "$omarchy_path/shell" "$repo/FanMonitorWidget.qml"
+qmllint -I "$omarchy_path/shell" "$repo/BarWidget.qml" "$repo/Panel.qml"
 bash -n "$repo/scripts/validate" "$repo/scripts/dev-deploy" "$repo/scripts/dev-remove"
 
 if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
