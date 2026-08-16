@@ -62,3 +62,30 @@ The separate states preserve the evidence for future labels and notifications ev
 A fixed 45% test completed for 900 seconds. The adaptive workload rerun also completed for 900 seconds with the heaviest available Satisfactory save and severe weather/reflections enabled.
 
 An earlier adaptive freeze was not reproduced. No thermal failure, NVIDIA Xid, kernel panic, OOM, NVMe failure, or fan-transition cause was found.
+
+## Live Quattro validation on 2026-08-16
+
+Temporarily loading the available `nct6775` driver exposed an NCT6798D-compatible controller at `0x2e:0x290`. It caused no audible fan-speed change and made no control write.
+
+The live read-only sample showed fan channels 1–6 at approximately 927–968 RPM and channel 7, the protected AIO pump, at approximately 2419 RPM. The application displayed all seven channels.
+
+The accepted temperature presentation is deliberately narrower than the raw sensor inventory:
+
+- CPU uses the `coretemp` package temperature.
+- System uses the NCT6798D `SYSTIN` input.
+- Four SPD5118 module readings are sorted and labelled RAM 1–4.
+- Four NVMe composite readings retain their stable PCI suffixes.
+- NCT `CPUTIN` and PECI readings are hidden as CPU duplicates.
+- Unmapped AUX inputs, zero-valued PCH inputs, the observed 127°C artefact, and the unverified 68°C PCH input remain hidden.
+
+The driver is not made persistent by this application. Persistent Hugin module loading belongs to the separately reviewed central Omarchy+ host integration.
+
+## GPU and refresh policy
+
+The live RTX 4090 interface exposes GPU temperature and one aggregate fan percentage through `nvidia-smi`. It does not expose fan RPM through the installed interfaces. Fan Monitor therefore labels the row `GPU Fans`, displays active percentage only, and presents NVIDIA's normal 0% zero-RPM state as `Idle`. During live validation, the GPU returned automatically from its 30% minimum active duty to 0% without a control action; this is consistent with the card's automatic cooldown hysteresis and does not indicate a persistent override.
+
+The motherboard PWM readings are paired only with fan channels 1–6 and rounded for display in the tooltip. Channel 7 remains RPM-only because its reported PWM value is not a valid percentage and the channel is protected as the likely AIO pump.
+
+Five live samples measured `sensors -j` at 124–133 ms and the NVIDIA query at 14–17 ms. The accepted initial refresh interval is three seconds. The collector refuses overlapping process runs, remains read-only, and performs no control write.
+
+The native Quattro shared tooltip centers each text line and exposes no alignment option to third-party widgets. Fan Monitor preserves that native surface and pads every monospaced line to an equal width so the visible content has a common left edge.

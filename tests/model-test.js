@@ -12,23 +12,57 @@ const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"))
 const parsed = Model.parseSensors(fixture)
 
 assert.deepEqual(parsed.fans, [
-  { name: "Fan 1", channel: 1, role: "fan", rpm: 886 },
-  { name: "Fan 2", channel: 2, role: "fan", rpm: 876 },
-  { name: "Fan 3", channel: 3, role: "fan", rpm: 850 },
-  { name: "Fan 4", channel: 4, role: "fan", rpm: 886 },
-  { name: "Fan 5", channel: 5, role: "fan", rpm: 870 },
-  { name: "Fan 6", channel: 6, role: "fan", rpm: 862 },
-  { name: "AIO Pump", channel: 7, role: "pump", rpm: 2406 }
+  { name: "Fan 1", channel: 1, role: "fan", rpm: 967, percent: 44 },
+  { name: "Fan 2", channel: 2, role: "fan", rpm: 959, percent: 44 },
+  { name: "Fan 3", channel: 3, role: "fan", rpm: 927, percent: 44 },
+  { name: "Fan 4", channel: 4, role: "fan", rpm: 968, percent: 44 },
+  { name: "Fan 5", channel: 5, role: "fan", rpm: 955, percent: 44 },
+  { name: "Fan 6", channel: 6, role: "fan", rpm: 946, percent: 44 },
+  { name: "AIO Pump", channel: 7, role: "pump", rpm: 2419 }
 ])
 
 assert.deepEqual(parsed.temps, [
   { name: "CPU", value: "38.0" },
-  { name: "Board 1", value: "31.5" },
-  { name: "NVMe 0400", value: "42.9" }
+  { name: "System", value: "34.0" },
+  { name: "RAM 1", value: "38.8" },
+  { name: "RAM 2", value: "39.0" },
+  { name: "RAM 3", value: "38.8" },
+  { name: "RAM 4", value: "36.8" },
+  { name: "NVMe 0200", value: "42.9" },
+  { name: "NVMe 0300", value: "39.9" },
+  { name: "NVMe 0500", value: "38.9" },
+  { name: "NVMe 0900", value: "37.9" }
 ])
 
+assert.equal(parsed.temps.some(item => item.name === "CPUTIN"), false)
+assert.equal(parsed.temps.some(item => item.value === "127.0"), false)
+assert.equal(parsed.temps.some(item => item.name.indexOf("PCH") !== -1), false)
 assert.equal(Model.parseSensorsJson("not json"), null)
 assert.deepEqual(Model.parseSensors(null), { fans: [], temps: [] })
+
+const gpu = Model.parseNvidiaCsv("52, 0\n")
+assert.deepEqual(gpu, {
+  temp: { name: "GPU", value: "52.0" },
+  fan: { name: "GPU Fans", role: "gpu", percent: 0 }
+})
+assert.equal(Model.parseNvidiaCsv("N/A, N/A"), null)
+
+const merged = Model.mergeGpuTelemetry(parsed, gpu)
+assert.equal(merged.fans[6].name, "GPU Fans")
+assert.equal(merged.fans[7].name, "AIO Pump")
+assert.equal(merged.temps[0].name, "CPU")
+assert.equal(merged.temps[1].name, "GPU")
+assert.equal(Model.fanStopped(gpu.fan), false)
+assert.equal(Model.fanReadingText(gpu.fan, true), "Idle")
+assert.equal(Model.fanReadingText(parsed.fans[0], true), "967 RPM (44%)")
+assert.equal(Model.fanReadingText(parsed.fans[6], true), "2419 RPM")
+
+const tooltipLines = Model.fanTooltipText(merged.fans).split("\n")
+assert.equal(tooltipLines[0].trimEnd(), "Fan 1: 967 RPM (44%)")
+assert.equal(tooltipLines[6].trimEnd(), "GPU Fans: Idle")
+assert.equal(tooltipLines[7].trimEnd(), "AIO Pump: 2419 RPM")
+assert.equal(tooltipLines[8].trimEnd(), "Click to view details")
+assert.equal(new Set(tooltipLines.map(line => line.length)).size, 1)
 
 const legacy = Model.parseSensors({
   "it8689-isa-0a40": {

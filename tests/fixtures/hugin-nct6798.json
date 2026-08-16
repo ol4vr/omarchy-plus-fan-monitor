@@ -1,48 +1,36 @@
 {
   "nct6798-isa-0290": {
-    "fan1": {
-      "fan1_input": 886.0
-    },
-    "fan2": {
-      "fan2_input": 876.0
-    },
-    "fan3": {
-      "fan3_input": 850.0
-    },
-    "fan4": {
-      "fan4_input": 886.0
-    },
-    "fan5": {
-      "fan5_input": 870.0
-    },
-    "fan6": {
-      "fan6_input": 862.0
-    },
-    "fan7": {
-      "fan7_input": 2406.0
-    },
-    "temp1": {
-      "temp1_input": 31.5
-    },
-    "temp2": {
-      "temp2_input": 127.0
-    }
+    "fan1": { "fan1_input": 967.0 },
+    "fan2": { "fan2_input": 959.0 },
+    "fan3": { "fan3_input": 927.0 },
+    "fan4": { "fan4_input": 968.0 },
+    "fan5": { "fan5_input": 955.0 },
+    "fan6": { "fan6_input": 946.0 },
+    "fan7": { "fan7_input": 2419.0 },
+    "pwm1": { "pwm1": 43.5, "pwm1_enable": 5.0, "pwm1_mode": 1.0 },
+    "pwm2": { "pwm2": 43.5, "pwm2_enable": 5.0, "pwm2_mode": 1.0 },
+    "pwm3": { "pwm3": 43.5, "pwm3_enable": 5.0, "pwm3_mode": 1.0 },
+    "pwm4": { "pwm4": 43.5, "pwm4_enable": 5.0, "pwm4_mode": 1.0 },
+    "pwm5": { "pwm5": 43.5, "pwm5_enable": 5.0, "pwm5_mode": 1.0 },
+    "pwm6": { "pwm6": 43.5, "pwm6_enable": 5.0, "pwm6_mode": 1.0 },
+    "pwm7": { "pwm7": 127.5, "pwm7_enable": 5.0, "pwm7_mode": 1.0 },
+    "SYSTIN": { "temp1_input": 34.0 },
+    "CPUTIN": { "temp2_input": 39.0 },
+    "AUXTIN0": { "temp3_input": 127.0 },
+    "AUXTIN1": { "temp4_input": 20.0 },
+    "PECI Agent 0": { "temp8_input": 39.0 },
+    "PCH_CHIP_TEMP": { "temp11_input": 68.0 }
   },
+  "spd5118-i2c-10-52": { "temp1": { "temp1_input": 38.75 } },
+  "spd5118-i2c-10-50": { "temp1": { "temp1_input": 38.75 } },
   "coretemp-isa-0000": {
-    "Package id 0": {
-      "temp1_input": 38.0,
-      "temp1_max": 100.0
-    }
+    "Package id 0": { "temp1_input": 38.0, "temp1_max": 80.0 }
   },
-  "nvme-pci-0400": {
-    "Composite": {
-      "temp1_input": 42.9,
-      "temp1_max": 84.8
-    }
-  },
-  "acpitz-acpi-0": {
-    "temp1": {
-      "temp1_input": 27.8
-    }
-  }
+  "nvme-pci-0200": { "Composite": { "temp1_input": 42.85 } },
+  "nvme-pci-0300": { "Composite": { "temp1_input": 39.85 } },
+  "spd5118-i2c-10-53": { "temp1": { "temp1_input": 36.75 } },
+  "spd5118-i2c-10-51": { "temp1": { "temp1_input": 39.0 } },
+  "nvme-pci-0500": { "Composite": { "temp1_input": 38.85 } },
+  "nvme-pci-0900": { "Composite": { "temp1_input": 37.85 } },
+  "acpitz_0-acpi-0": { "temp1": { "temp1_input": 27.8 } }
 }

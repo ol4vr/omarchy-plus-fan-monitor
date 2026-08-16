@@ -113,9 +113,12 @@ if [[ -n "$backup" && -d "$backup" ]]; then
   rm -rf -- "$backup"
 fi
 
-omarchy-shell shell rescanPlugins
+# Quattro currently rescans changed plugins without evicting their QML
+# component cache. A full shell restart is the documented safe reload path;
+# `omarchy refresh shell` is intentionally not used because it resets shell.json.
+omarchy restart shell
 
-echo "Fan Monitor development copy deployed."
+echo "Fan Monitor development copy deployed and shell restarted."
 echo "Source:  $repo"
 echo "Target:  $target"
 echo "Branch:  $branch"

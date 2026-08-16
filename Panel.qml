@@ -20,10 +20,20 @@ Panel {
   readonly property var temps: hostWidget ? hostWidget.temps : []
   readonly property bool loaded: hostWidget ? hostWidget.loaded === true : false
   readonly property bool hasDeadFan: hostWidget ? hostWidget.hasDeadFan === true : false
+  readonly property bool hasFanData: root.fans.length > 0
   readonly property color primaryColor: hostWidget ? hostWidget.primaryColor : Color.foreground
+  readonly property real readingLabelWidth: 76
 
   function badgeColor() {
     return hostWidget ? hostWidget.badgeColor() : Color.foreground
+  }
+
+  function fanStopped(fan) {
+    return Model.fanStopped(fan)
+  }
+
+  function fanText(fan) {
+    return Model.fanReadingText(fan, true)
   }
 
   function tempColor(value) {
@@ -86,7 +96,7 @@ Panel {
 
         Row {
           width: parent.width
-          spacing: Style.spacing.sm
+          spacing: Style.space(20)
 
           Text {
             anchors.verticalCenter: parent.verticalCenter
@@ -109,8 +119,8 @@ Panel {
             }
 
             Text {
-              text: !root.loaded ? "Loading…" : (root.hasDeadFan ? "FAN STOPPED" : "All fans OK")
-              color: root.hasDeadFan ? Color.urgent : root.primaryColor
+              text: !root.loaded ? "Loading…" : (!root.hasFanData ? "No fan data" : (root.hasDeadFan ? "FAN STOPPED" : "All fans OK"))
+              color: root.hasDeadFan ? Color.urgent : (root.loaded && !root.hasFanData ? "#e8a33d" : root.primaryColor)
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
             }
@@ -143,15 +153,16 @@ Panel {
                 color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.6)
                 font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
-                width: 48
+                width: root.readingLabelWidth
+                elide: Text.ElideRight
               }
 
               Text {
-                text: modelData.rpm === 0 ? "STOPPED" : modelData.rpm + " RPM"
-                color: modelData.rpm === 0 ? Color.urgent : Color.popups.text
+                text: root.fanText(modelData)
+                color: root.fanStopped(modelData) ? Color.urgent : Color.popups.text
                 font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
-                font.bold: modelData.rpm === 0
+                font.bold: root.fanStopped(modelData)
               }
             }
           }
@@ -184,7 +195,7 @@ Panel {
                 color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.6)
                 font.family: Style.font.family
                 font.pixelSize: Style.font.bodySmall
-                width: 76
+                width: root.readingLabelWidth
               }
 
               Text {

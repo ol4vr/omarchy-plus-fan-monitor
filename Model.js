@@ -1,4 +1,4 @@
-// Pure lm_sensors JSON parsing for Fan Monitor.
+// Pure telemetry parsing and presentation helpers for Fan Monitor.
 //
 // Keep this file independent of Qt and Quickshell so the same data contract
 // can be verified under Node before the plugin is loaded into omarchy-shell.
@@ -8,6 +8,7 @@ function isObject(value) {
 }
 
 function finiteNumber(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null
   var number = Number(value)
   return isFinite(number) ? number : null
 }
@@ -21,6 +22,10 @@ function firstInputValue(sensor) {
     if (number !== null) return number
   }
   return null
+}
+
+function validTemperature(value, maximum) {
+  return value !== null && value > -50 && value < maximum
 }
 
 function isBoardChip(chip) {
@@ -37,8 +42,27 @@ function fanDisplayName(chip, sensorName) {
   return match[1] === "7" ? "AIO Pump" : "Fan " + match[1]
 }
 
-function appendBoardData(chip, chipData, fans, temps) {
+function pwmPercentage(sensor, sensorName) {
+  if (!isObject(sensor)) return null
+  var value = finiteNumber(sensor[sensorName])
+  if (value === null) value = finiteNumber(sensor[sensorName + "_input"])
+  if (value === null || value < 0 || value > 100) return null
+  return Math.round(value)
+}
+
+function appendBoardData(chip, chipData, fans, systemTemps, legacyBoardTemps) {
+  var isNct6798 = String(chip).toLowerCase().indexOf("nct6798") !== -1
   var sensorNames = Object.keys(chipData)
+  var percentages = {}
+
+  for (var dutyIndex = 0; dutyIndex < sensorNames.length; dutyIndex++) {
+    var dutyName = sensorNames[dutyIndex]
+    var dutyMatch = /^pwm([1-6])$/.exec(dutyName)
+    if (!dutyMatch) continue
+    var duty = pwmPercentage(chipData[dutyName], dutyName)
+    if (duty !== null) percentages[Number(dutyMatch[1])] = duty
+  }
+
   for (var i = 0; i < sensorNames.length; i++) {
     var sensorName = sensorNames[i]
     var sensor = chipData[sensorName]
@@ -46,54 +70,74 @@ function appendBoardData(chip, chipData, fans, temps) {
 
     var fanMatch = /^fan([0-9]+)$/.exec(sensorName)
     if (fanMatch) {
-      var fanKey = sensorName + "_input"
-      var rpm = finiteNumber(sensor[fanKey])
+      var channel = Number(fanMatch[1])
+      var rpm = finiteNumber(sensor[sensorName + "_input"])
       if (rpm !== null && rpm >= 0) {
-        fans.push({
+        var fan = {
           name: fanDisplayName(chip, sensorName),
-          channel: Number(fanMatch[1]),
-          role: fanMatch[1] === "7" && String(chip).toLowerCase().indexOf("nct6798") !== -1
-            ? "pump"
-            : "fan",
+          channel: channel,
+          role: fanMatch[1] === "7" && isNct6798 ? "pump" : "fan",
           rpm: Math.round(rpm)
-        })
+        }
+        if (percentages[channel] !== undefined)
+          fan.percent = percentages[channel]
+        fans.push(fan)
+      }
+      continue
+    }
+
+    // Hugin's NCT6798D exposes several duplicate, unlabelled, zero, or
+    // demonstrably spurious motherboard readings. SYSTIN is the sole board
+    // temperature accepted for display until the other inputs are mapped.
+    if (isNct6798) {
+      if (sensorName === "SYSTIN") {
+        var systemValue = firstInputValue(sensor)
+        if (validTemperature(systemValue, 120))
+          systemTemps.push({ name: "System", value: systemValue.toFixed(1) })
       }
       continue
     }
 
     var tempMatch = /^temp([0-9]+)$/.exec(sensorName)
     if (tempMatch) {
-      var tempKey = sensorName + "_input"
-      var boardTemp = finiteNumber(sensor[tempKey])
-      if (boardTemp !== null && boardTemp > -50 && boardTemp < 120) {
-        temps.push({
+      var boardValue = finiteNumber(sensor[sensorName + "_input"])
+      if (validTemperature(boardValue, 120)) {
+        legacyBoardTemps.push({
           name: "Board " + tempMatch[1],
-          value: boardTemp.toFixed(1)
+          value: boardValue.toFixed(1)
         })
       }
     }
   }
 }
 
-function prependCpuTemperature(chipData, temps) {
-  var sensor = chipData["Package id 0"]
-  var value = firstInputValue(sensor)
-  if (value === null || value <= -50 || value >= 120) return
-  temps.unshift({ name: "CPU", value: value.toFixed(1) })
+function appendCpuTemperature(chipData, temps) {
+  var value = firstInputValue(chipData["Package id 0"])
+  if (!validTemperature(value, 120)) return
+  temps.push({ name: "CPU", value: value.toFixed(1) })
 }
 
-function appendNvmeTemperature(chip, chipData, temps) {
+function appendMemoryTemperature(chip, chipData, memorySources) {
+  var value = firstInputValue(chipData.temp1)
+  if (!validTemperature(value, 100)) return
+  memorySources.push({ chip: String(chip), value: value })
+}
+
+function appendNvmeTemperature(chip, chipData, nvmeSources) {
   var value = firstInputValue(chipData.Composite)
-  if (value === null || value <= -50 || value >= 100) return
-  var parts = String(chip).split("-")
-  temps.push({ name: "NVMe " + parts[parts.length - 1], value: value.toFixed(1) })
+  if (!validTemperature(value, 100)) return
+  nvmeSources.push({ chip: String(chip), value: value })
 }
 
 function parseSensors(data) {
   if (!isObject(data)) return { fans: [], temps: [] }
 
   var fans = []
-  var temps = []
+  var cpuTemps = []
+  var systemTemps = []
+  var memorySources = []
+  var legacyBoardTemps = []
+  var nvmeSources = []
   var chips = Object.keys(data)
 
   for (var i = 0; i < chips.length; i++) {
@@ -101,15 +145,42 @@ function parseSensors(data) {
     var chipData = data[chip]
     if (!isObject(chipData)) continue
 
+    var lowerChip = String(chip).toLowerCase()
     if (isBoardChip(chip))
-      appendBoardData(chip, chipData, fans, temps)
-    else if (String(chip).toLowerCase().indexOf("coretemp") !== -1)
-      prependCpuTemperature(chipData, temps)
-    else if (String(chip).toLowerCase().indexOf("nvme") !== -1)
-      appendNvmeTemperature(chip, chipData, temps)
+      appendBoardData(chip, chipData, fans, systemTemps, legacyBoardTemps)
+    else if (lowerChip.indexOf("coretemp") !== -1)
+      appendCpuTemperature(chipData, cpuTemps)
+    else if (lowerChip.indexOf("spd5118") !== -1)
+      appendMemoryTemperature(chip, chipData, memorySources)
+    else if (lowerChip.indexOf("nvme") !== -1)
+      appendNvmeTemperature(chip, chipData, nvmeSources)
   }
 
-  return { fans: fans, temps: temps }
+  fans.sort(function(a, b) { return a.channel - b.channel })
+  memorySources.sort(function(a, b) { return a.chip.localeCompare(b.chip) })
+  nvmeSources.sort(function(a, b) { return a.chip.localeCompare(b.chip) })
+
+  var memoryTemps = []
+  for (var memoryIndex = 0; memoryIndex < memorySources.length; memoryIndex++) {
+    memoryTemps.push({
+      name: "RAM " + (memoryIndex + 1),
+      value: memorySources[memoryIndex].value.toFixed(1)
+    })
+  }
+
+  var nvmeTemps = []
+  for (var nvmeIndex = 0; nvmeIndex < nvmeSources.length; nvmeIndex++) {
+    var parts = nvmeSources[nvmeIndex].chip.split("-")
+    nvmeTemps.push({
+      name: "NVMe " + parts[parts.length - 1],
+      value: nvmeSources[nvmeIndex].value.toFixed(1)
+    })
+  }
+
+  return {
+    fans: fans,
+    temps: cpuTemps.concat(systemTemps, memoryTemps, legacyBoardTemps, nvmeTemps)
+  }
 }
 
 function parseSensorsJson(raw) {
@@ -118,6 +189,109 @@ function parseSensorsJson(raw) {
   } catch (error) {
     return null
   }
+}
+
+function parseNvidiaCsv(raw) {
+  var line = String(raw || "").trim().split(/\r?\n/)[0]
+  if (!line) return null
+  var fields = line.split(",")
+  if (fields.length < 2) return null
+
+  var temperature = finiteNumber(fields[0].trim())
+  var percentage = finiteNumber(fields[1].trim())
+  var result = { temp: null, fan: null }
+
+  if (validTemperature(temperature, 120))
+    result.temp = { name: "GPU", value: temperature.toFixed(1) }
+  if (percentage !== null && percentage >= 0 && percentage <= 100) {
+    result.fan = {
+      name: "GPU Fans",
+      role: "gpu",
+      percent: Math.round(percentage)
+    }
+  }
+
+  return result.temp || result.fan ? result : null
+}
+
+function mergeGpuTelemetry(sensorData, gpuData) {
+  var base = isObject(sensorData) ? sensorData : { fans: [], temps: [] }
+  var fans = Array.isArray(base.fans) ? base.fans.slice() : []
+  var temps = Array.isArray(base.temps) ? base.temps.slice() : []
+
+  if (gpuData && gpuData.fan) {
+    var pumpIndex = fans.length
+    for (var fanIndex = 0; fanIndex < fans.length; fanIndex++) {
+      if (fans[fanIndex].role === "pump") {
+        pumpIndex = fanIndex
+        break
+      }
+    }
+    fans.splice(pumpIndex, 0, gpuData.fan)
+  }
+
+  if (gpuData && gpuData.temp) {
+    var cpuIndex = -1
+    for (var tempIndex = 0; tempIndex < temps.length; tempIndex++) {
+      if (temps[tempIndex].name === "CPU") {
+        cpuIndex = tempIndex
+        break
+      }
+    }
+    temps.splice(cpuIndex + 1, 0, gpuData.temp)
+  }
+
+  return { fans: fans, temps: temps }
+}
+
+function fanStopped(fan) {
+  if (!isObject(fan) || fan.role === "gpu") return false
+  var rpm = finiteNumber(fan.rpm)
+  return rpm !== null && rpm === 0
+}
+
+function fanReadingText(fan, includePercentage) {
+  if (!isObject(fan)) return "Unavailable"
+  var rpm = finiteNumber(fan.rpm)
+  var percentage = finiteNumber(fan.percent)
+  var text = ""
+
+  if (fan.role === "gpu" && percentage === 0)
+    return "Idle"
+  if (rpm !== null)
+    text = rpm === 0 ? "STOPPED" : Math.round(rpm) + " RPM"
+  else if (percentage !== null)
+    return Math.round(percentage) + "%"
+  else
+    return "Unavailable"
+
+  if (includePercentage && percentage !== null)
+    text += " (" + Math.round(percentage) + "%)"
+  return text
+}
+
+function padRight(value, width) {
+  var text = String(value)
+  while (text.length < width) text += "\u00a0"
+  return text
+}
+
+function fanTooltipText(fans) {
+  var rows = []
+  var values = Array.isArray(fans) ? fans : []
+  if (values.length === 0) rows.push("No fan data")
+  else {
+    for (var i = 0; i < values.length; i++)
+      rows.push(values[i].name + ": " + fanReadingText(values[i], true))
+  }
+  rows.push("Click to view details")
+
+  var width = 0
+  for (var rowIndex = 0; rowIndex < rows.length; rowIndex++)
+    if (rows[rowIndex].length > width) width = rows[rowIndex].length
+  for (var padIndex = 0; padIndex < rows.length; padIndex++)
+    rows[padIndex] = padRight(rows[padIndex], width)
+  return rows.join("\n")
 }
 
 // Read-only presentation tiers derived from Hugin's proposed controller
@@ -136,6 +310,11 @@ if (typeof module !== "undefined") {
   module.exports = {
     parseSensors: parseSensors,
     parseSensorsJson: parseSensorsJson,
+    parseNvidiaCsv: parseNvidiaCsv,
+    mergeGpuTelemetry: mergeGpuTelemetry,
+    fanStopped: fanStopped,
+    fanReadingText: fanReadingText,
+    fanTooltipText: fanTooltipText,
     temperatureState: temperatureState
   }
 }

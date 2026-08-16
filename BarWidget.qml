@@ -11,6 +11,8 @@ BarWidget {
   id: root
   moduleName: "io.github.ol4vr.fan-monitor"
 
+  property var sensorData: ({ fans: [], temps: [] })
+  property var gpuData: null
   property var fans: []
   property var temps: []
   property bool loaded: false
@@ -18,21 +20,33 @@ BarWidget {
   readonly property bool hasDeadFan: {
     var f = fans
     for (var i = 0; i < f.length; i++) {
-      if (f[i].rpm === 0) return true
+      if (Model.fanStopped(f[i])) return true
     }
     return false
   }
 
+  function rebuildTelemetry() {
+    var merged = Model.mergeGpuTelemetry(sensorData, gpuData)
+    fans = merged.fans
+    temps = merged.temps
+  }
+
   function refresh() {
     if (!sensorsProc.running) sensorsProc.running = true
+    if (!nvidiaProc.running) nvidiaProc.running = true
   }
 
   function parseSensors(raw) {
     var parsed = Model.parseSensorsJson(raw)
     if (!parsed) return
-    fans = parsed.fans
-    temps = parsed.temps
+    sensorData = parsed
     loaded = true
+    rebuildTelemetry()
+  }
+
+  function parseNvidia(raw) {
+    gpuData = Model.parseNvidiaCsv(raw)
+    rebuildTelemetry()
   }
 
   Process {
@@ -44,21 +58,28 @@ BarWidget {
     }
   }
 
+  Process {
+    id: nvidiaProc
+    command: [
+      "nvidia-smi",
+      "--query-gpu=temperature.gpu,fan.speed",
+      "--format=csv,noheader,nounits"
+    ]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.parseNvidia(text)
+    }
+  }
+
   Timer {
-    interval: 30000
+    interval: 3000
     running: true
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refresh()
   }
 
-  readonly property string tooltipText: {
-    if (fans.length === 0) return "Fans & temps\nClick to view details"
-    var parts = []
-    for (var i = 0; i < fans.length; i++)
-      parts.push(fans[i].name + ": " + (fans[i].rpm === 0 ? "STOPPED" : fans[i].rpm + " RPM"))
-    return parts.join("\n") + "\nClick to view details"
-  }
+  readonly property string tooltipText: Model.fanTooltipText(fans)
 
   readonly property color primaryColor: root.bar ? root.bar.barForeground : Color.foreground
 
