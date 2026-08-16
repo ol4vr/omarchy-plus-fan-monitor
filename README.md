@@ -47,7 +47,38 @@ The authoritative source checkout on Hugin is:
 
 The central `/home/ol4vr/Projects/omarchy-plus` repository owns production commit pins, host selection, enablement, placement, and integration validation.
 
-Do not edit the live plugin directory as authoritative source. Development deployment and removal tooling will be added before the first live test.
+Do not edit the live plugin directory as authoritative source.
+
+## Development tools
+
+Validate source without changing live configuration:
+
+```bash
+./scripts/validate
+```
+
+Validate the complete development deployment path without installing anything:
+
+```bash
+./scripts/dev-deploy --check
+```
+
+Deploy a disposable live development copy only after review:
+
+```bash
+./scripts/dev-deploy
+```
+
+The deployment refuses Git-managed production checkouts and unrecognized directories. It does not enable the application automatically.
+
+Inspect or remove only a marker-owned development copy:
+
+```bash
+./scripts/dev-remove --check
+./scripts/dev-remove
+```
+
+The removal command never removes the source repository or a Git-managed production checkout.
 
 ## Provenance
 

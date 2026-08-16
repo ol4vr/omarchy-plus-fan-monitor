@@ -1,0 +1,6 @@
+FanMonitorWidget.qml
+LICENSE
+README.md
+UPSTREAM.md
+manifest.json
+preview.png
