@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.ol4vr.fan-monitor",
   "name": "Fan Monitor",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "author": "Olav Rorvik",
   "license": "MIT",
   "description": "Fan-speed and temperature status for Omarchy+ systems.",

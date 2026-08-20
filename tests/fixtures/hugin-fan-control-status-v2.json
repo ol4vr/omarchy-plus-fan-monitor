@@ -1,0 +1,102 @@
+{
+  "schema": 2,
+  "host": "hugin",
+  "service_state": "running",
+  "control_mode": "manual",
+  "writes_performed": true,
+  "snapshot_fresh": true,
+  "error": null,
+  "controller": {
+    "hwmon": "hwmon7",
+    "name": "nct6798"
+  },
+  "policy": {
+    "changed": false,
+    "outputs": {
+      "case_fans": { "duty_percent": 18, "pwm_raw": 46 },
+      "cpu_fans": { "duty_percent": 25, "pwm_raw": 64 }
+    },
+    "pending_direction": null,
+    "pending_elapsed_seconds": null,
+    "pending_required_seconds": null,
+    "pending_tier_id": null,
+    "reason": "steady",
+    "tier_id": "idle"
+  },
+  "channels": [
+    {
+      "index": 1,
+      "name": "CPU Fans",
+      "fan_group_id": "cpu_fans",
+      "role": "controlled",
+      "commanded_duty_percent": 25,
+      "commanded_pwm_raw": 64,
+      "pwm_enable": 1,
+      "pwm_raw": 64,
+      "rpm": 528
+    },
+    {
+      "index": 2,
+      "name": "Case Fans",
+      "fan_group_id": "case_fans",
+      "role": "controlled",
+      "commanded_duty_percent": 18,
+      "commanded_pwm_raw": 46,
+      "pwm_enable": 1,
+      "pwm_raw": 46,
+      "rpm": 655
+    },
+    {
+      "index": 3,
+      "role": "unused",
+      "commanded_duty_percent": null,
+      "commanded_pwm_raw": null,
+      "pwm_enable": 5,
+      "pwm_raw": 26,
+      "rpm": 0
+    },
+    {
+      "index": 4,
+      "role": "unused",
+      "commanded_duty_percent": null,
+      "commanded_pwm_raw": null,
+      "pwm_enable": 5,
+      "pwm_raw": 26,
+      "rpm": 0
+    },
+    {
+      "index": 5,
+      "role": "unused",
+      "commanded_duty_percent": null,
+      "commanded_pwm_raw": null,
+      "pwm_enable": 5,
+      "pwm_raw": 26,
+      "rpm": 0
+    },
+    {
+      "index": 6,
+      "role": "unused",
+      "commanded_duty_percent": null,
+      "commanded_pwm_raw": null,
+      "pwm_enable": 5,
+      "pwm_raw": 26,
+      "rpm": 0
+    },
+    {
+      "index": 7,
+      "role": "protected",
+      "commanded_duty_percent": null,
+      "commanded_pwm_raw": null,
+      "pwm_enable": 5,
+      "pwm_raw": 255,
+      "rpm": 3169
+    }
+  ],
+  "temperature_source": {
+    "hwmon": "hwmon13",
+    "label": "Package id 0",
+    "name": "coretemp",
+    "temperature_c": 35.0
+  },
+  "updated_monotonic_seconds": 802.233817377
+}

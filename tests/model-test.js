@@ -11,16 +11,14 @@ const fixturePath = path.join(__dirname, "fixtures", "hugin-nct6798.json")
 const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"))
 const controlFixturePath = path.join(__dirname, "fixtures", "hugin-fan-control-status.json")
 const controlFixture = JSON.parse(fs.readFileSync(controlFixturePath, "utf8"))
+const groupedControlFixturePath = path.join(__dirname, "fixtures", "hugin-fan-control-status-v2.json")
+const groupedControlFixture = JSON.parse(fs.readFileSync(groupedControlFixturePath, "utf8"))
 const parsed = Model.parseSensors(fixture)
 
 assert.deepEqual(parsed.fans, [
-  { name: "Fan 1", channel: 1, role: "fan", rpm: 967, percent: 44 },
-  { name: "Fan 2", channel: 2, role: "fan", rpm: 959, percent: 44 },
-  { name: "Fan 3", channel: 3, role: "fan", rpm: 927, percent: 44 },
-  { name: "Fan 4", channel: 4, role: "fan", rpm: 968, percent: 44 },
-  { name: "Fan 5", channel: 5, role: "fan", rpm: 955, percent: 44 },
-  { name: "Fan 6", channel: 6, role: "fan", rpm: 946, percent: 44 },
-  { name: "AIO Pump", channel: 7, role: "pump", rpm: 2419 }
+  { name: "CPU Fans", channel: 1, role: "fan", rpm: 486, percent: 13 },
+  { name: "Case Fans", channel: 2, role: "fan", rpm: 656, percent: 13 },
+  { name: "AIO Pump", channel: 7, role: "pump", rpm: 3169 }
 ])
 
 assert.deepEqual(parsed.temps, [
@@ -50,20 +48,19 @@ assert.deepEqual(gpu, {
 assert.equal(Model.parseNvidiaCsv("N/A, N/A"), null)
 
 const merged = Model.mergeGpuTelemetry(parsed, gpu)
-assert.equal(merged.fans[6].name, "GPU Fans")
-assert.equal(merged.fans[7].name, "AIO Pump")
+assert.equal(merged.fans[2].name, "GPU Fans")
+assert.equal(merged.fans[3].name, "AIO Pump")
 assert.equal(merged.temps[0].name, "CPU")
 assert.equal(merged.temps[1].name, "GPU")
 assert.equal(Model.fanStopped(gpu.fan), false)
 assert.equal(Model.fanReadingText(gpu.fan, true), "Idle")
-assert.equal(Model.fanReadingText(parsed.fans[0], true), "967 RPM (44%)")
-assert.equal(Model.fanReadingText(parsed.fans[6], true), "2419 RPM")
+assert.equal(Model.fanReadingText(parsed.fans[0], true), "486 RPM (13%)")
+assert.equal(Model.fanReadingText(parsed.fans[2], true), "3169 RPM")
 
 const controlStatus = Model.parseFanControlStatus(controlFixture)
 assert.deepEqual(controlStatus, {
   duties: { 1: 10, 2: 10, 3: 10, 4: 10, 5: 10, 6: 10 },
-  tierId: "idle",
-  dutyPercent: 10
+  tierId: "idle"
 })
 assert.deepEqual(Model.parseFanControlStatusJson(JSON.stringify(controlFixture)), controlStatus)
 assert.equal(Model.parseFanControlStatusJson("not json"), null)
@@ -71,11 +68,23 @@ assert.equal(Model.parseFanControlStatusJson("not json"), null)
 const controlled = Model.mergeFanControlStatus(merged, controlStatus)
 assert.equal(controlled.fans[0].percent, 10)
 assert.equal(controlled.fans[0].percentSource, "native-controller")
-assert.equal(controlled.fans[6].name, "GPU Fans")
-assert.equal(controlled.fans[6].percent, 0)
-assert.equal(controlled.fans[7].name, "AIO Pump")
-assert.equal(controlled.fans[7].percent, undefined)
-assert.equal(Model.fanReadingText(controlled.fans[0], true), "967 RPM (10%)")
+assert.equal(controlled.fans[1].percent, 10)
+assert.equal(controlled.fans[2].name, "GPU Fans")
+assert.equal(controlled.fans[2].percent, 0)
+assert.equal(controlled.fans[3].name, "AIO Pump")
+assert.equal(controlled.fans[3].percent, undefined)
+assert.equal(Model.fanReadingText(controlled.fans[0], true), "486 RPM (10%)")
+
+const groupedControlStatus = Model.parseFanControlStatus(groupedControlFixture)
+assert.deepEqual(groupedControlStatus, {
+  duties: { 1: 25, 2: 18 },
+  tierId: "idle"
+})
+const grouped = Model.mergeFanControlStatus(merged, groupedControlStatus)
+assert.equal(grouped.fans[0].percent, 25)
+assert.equal(grouped.fans[1].percent, 18)
+assert.equal(grouped.fans[0].percentSource, "native-controller")
+assert.equal(grouped.fans[1].percentSource, "native-controller")
 
 const failedControlFixture = JSON.parse(JSON.stringify(controlFixture))
 failedControlFixture.service_state = "failed"
@@ -86,12 +95,19 @@ assert.equal(Model.parseFanControlStatus(unsafePumpFixture), null)
 const missingChannelFixture = JSON.parse(JSON.stringify(controlFixture))
 missingChannelFixture.channels.splice(5, 1)
 assert.equal(Model.parseFanControlStatus(missingChannelFixture), null)
+const unsafeUnusedFixture = JSON.parse(JSON.stringify(groupedControlFixture))
+unsafeUnusedFixture.channels[2].commanded_duty_percent = 25
+assert.equal(Model.parseFanControlStatus(unsafeUnusedFixture), null)
+const mismatchedGroupFixture = JSON.parse(JSON.stringify(groupedControlFixture))
+mismatchedGroupFixture.policy.outputs.case_fans.duty_percent = 20
+assert.equal(Model.parseFanControlStatus(mismatchedGroupFixture), null)
 
 const tooltipLines = Model.fanTooltipText(merged.fans).split("\n")
-assert.equal(tooltipLines[0].trimEnd(), "Fan 1: 967 RPM (44%)")
-assert.equal(tooltipLines[6].trimEnd(), "GPU Fans: Idle")
-assert.equal(tooltipLines[7].trimEnd(), "AIO Pump: 2419 RPM")
-assert.equal(tooltipLines[8].trimEnd(), "Click to view details")
+assert.equal(tooltipLines[0].trimEnd(), "CPU Fans: 486 RPM (13%)")
+assert.equal(tooltipLines[1].trimEnd(), "Case Fans: 656 RPM (13%)")
+assert.equal(tooltipLines[2].trimEnd(), "GPU Fans: Idle")
+assert.equal(tooltipLines[3].trimEnd(), "AIO Pump: 3169 RPM")
+assert.equal(tooltipLines[4].trimEnd(), "Click to view details")
 assert.equal(new Set(tooltipLines.map(line => line.length)).size, 1)
 
 const legacy = Model.parseSensors({

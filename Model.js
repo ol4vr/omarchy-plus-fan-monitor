@@ -39,7 +39,10 @@ function fanDisplayName(chip, sensorName) {
   var match = /^fan([0-9]+)$/.exec(sensorName)
   if (!match) return sensorName
   if (String(chip).toLowerCase().indexOf("nct6798") === -1) return sensorName
-  return match[1] === "7" ? "AIO Pump" : "Fan " + match[1]
+  if (match[1] === "1") return "CPU Fans"
+  if (match[1] === "2") return "Case Fans"
+  if (match[1] === "7") return "AIO Pump"
+  return "Fan " + match[1]
 }
 
 function pwmPercentage(sensor, sensorName) {
@@ -71,6 +74,7 @@ function appendBoardData(chip, chipData, fans, systemTemps, legacyBoardTemps) {
     var fanMatch = /^fan([0-9]+)$/.exec(sensorName)
     if (fanMatch) {
       var channel = Number(fanMatch[1])
+      if (isNct6798 && channel >= 3 && channel <= 6) continue
       var rpm = finiteNumber(sensor[sensorName + "_input"])
       if (rpm !== null && rpm >= 0) {
         var fan = {
@@ -191,20 +195,12 @@ function parseSensorsJson(raw) {
   }
 }
 
-function parseFanControlStatus(data) {
-  if (!isObject(data) || data.schema !== 1) return null
-  if (data.service_state !== "running" || data.control_mode !== "manual") return null
-  if (data.writes_performed !== true || data.snapshot_fresh !== true || data.error !== null)
-    return null
-  if (!isObject(data.controller) || data.controller.name !== "nct6798") return null
-  if (!isObject(data.policy) || !Array.isArray(data.channels) || data.channels.length !== 7)
-    return null
-
+function parseLegacyFanControlChannels(channels) {
   var duties = {}
   var protectedFound = false
 
-  for (var i = 0; i < data.channels.length; i++) {
-    var channel = data.channels[i]
+  for (var i = 0; i < channels.length; i++) {
+    var channel = channels[i]
     if (!isObject(channel)) return null
     var index = finiteNumber(channel.index)
     if (index === null || Math.floor(index) !== index) return null
@@ -227,15 +223,77 @@ function parseFanControlStatus(data) {
     }
   }
 
-  if (Object.keys(duties).length !== 6 || !protectedFound) return null
+  return Object.keys(duties).length === 6 && protectedFound ? duties : null
+}
 
-  var policyDuty = finiteNumber(data.policy.duty_percent)
-  if (policyDuty === null || policyDuty < 0 || policyDuty > 100) return null
+function parseGroupedFanControlChannels(channels) {
+  var duties = {}
+  var seen = {}
+  var expectedGroups = { 1: "cpu_fans", 2: "case_fans" }
+  var expectedNames = { 1: "CPU Fans", 2: "Case Fans" }
+
+  for (var i = 0; i < channels.length; i++) {
+    var channel = channels[i]
+    if (!isObject(channel)) return null
+    var index = finiteNumber(channel.index)
+    if (index === null || Math.floor(index) !== index || index < 1 || index > 7)
+      return null
+    if (seen[index]) return null
+    seen[index] = true
+
+    if (index === 1 || index === 2) {
+      if (channel.role !== "controlled" ||
+          channel.fan_group_id !== expectedGroups[index] ||
+          channel.name !== expectedNames[index]) return null
+      var duty = finiteNumber(channel.commanded_duty_percent)
+      var raw = finiteNumber(channel.commanded_pwm_raw)
+      var enable = finiteNumber(channel.pwm_enable)
+      if (duty === null || duty < 0 || duty > 100) return null
+      if (raw === null || raw < 0 || raw > 255 || enable !== 1) return null
+      duties[index] = Math.round(duty)
+    } else if (index >= 3 && index <= 6) {
+      if (channel.role !== "unused") return null
+      if (channel.commanded_duty_percent !== null || channel.commanded_pwm_raw !== null)
+        return null
+    } else {
+      if (channel.role !== "protected") return null
+      if (channel.commanded_duty_percent !== null || channel.commanded_pwm_raw !== null)
+        return null
+    }
+  }
+
+  return Object.keys(seen).length === 7 && Object.keys(duties).length === 2 ? duties : null
+}
+
+function parseFanControlStatus(data) {
+  if (!isObject(data) || (data.schema !== 1 && data.schema !== 2)) return null
+  if (data.service_state !== "running" || data.control_mode !== "manual") return null
+  if (data.writes_performed !== true || data.snapshot_fresh !== true || data.error !== null)
+    return null
+  if (!isObject(data.controller) || data.controller.name !== "nct6798") return null
+  if (!isObject(data.policy) || !Array.isArray(data.channels) || data.channels.length !== 7)
+    return null
+
+  var duties = data.schema === 1
+    ? parseLegacyFanControlChannels(data.channels)
+    : parseGroupedFanControlChannels(data.channels)
+  if (duties === null) return null
+
+  if (data.schema === 1) {
+    var policyDuty = finiteNumber(data.policy.duty_percent)
+    if (policyDuty === null || policyDuty < 0 || policyDuty > 100) return null
+  } else {
+    if (!isObject(data.policy.outputs)) return null
+    var cpuOutput = data.policy.outputs.cpu_fans
+    var caseOutput = data.policy.outputs.case_fans
+    if (!isObject(cpuOutput) || !isObject(caseOutput)) return null
+    if (finiteNumber(cpuOutput.duty_percent) !== duties[1] ||
+        finiteNumber(caseOutput.duty_percent) !== duties[2]) return null
+  }
 
   return {
     duties: duties,
-    tierId: String(data.policy.tier_id || ""),
-    dutyPercent: Math.round(policyDuty)
+    tierId: String(data.policy.tier_id || "")
   }
 }
 

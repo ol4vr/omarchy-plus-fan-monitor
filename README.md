@@ -17,7 +17,9 @@ io.github.ol4vr.fan-monitor
 ## Current behavior
 
 - Polls `sensors -j`, the minimal NVIDIA query, and the native fan-control status every 3 seconds; overlapping polls are suppressed.
-- Uses healthy `/run/omarchy-plus/fan-control/status.json` data as the authoritative commanded duty for motherboard fans 1–6.
+- Labels Hugin channel 1 as `CPU Fans`, channel 2 as `Case Fans`, and channel 7 as `AIO Pump`; unused channels 3–6 are hidden.
+- Uses healthy `/run/omarchy-plus/fan-control/status.json` data as the authoritative commanded duty for the two controlled fan groups.
+- Accepts both the legacy schema-1 shared-duty status and the schema-2 independent fan-group status during migration.
 - Shows a bar badge whose color reflects the highest displayed temperature.
 - Opens a details popup with Hugin fan RPM, RTX 4090 aggregate fan percentage, and CPU, GPU, System, RAM, and NVMe temperatures.
 - Refreshes immediately when the details popup opens.
@@ -37,16 +39,16 @@ Supported data contracts:
 
 | Chip family | Displayed data |
 | --- | --- |
-| `nct6798` | Hugin fan channels 1–6, monitored AIO pump channel 7, and allowlisted `SYSTIN` System temperature |
+| `nct6798` | Hugin CPU Fans on channel 1, Case Fans on channel 2, monitored AIO Pump on channel 7, and allowlisted `SYSTIN` System temperature |
 | `it8689` / `it87` | Fan speeds and valid legacy board temperatures |
 | `coretemp` | CPU package temperature |
 | `spd5118` | RAM-module temperatures, sorted by stable chip identity |
 | `nvme` | Composite temperature, sorted by PCI identity |
 | NVIDIA `nvidia-smi` | GPU temperature and aggregate fan percentage; no control and no RPM claim |
 
-Fan Monitor only reads channel 7. It never writes pump or fan controls. Motherboard fan rows show RPM and use the native controller's commanded percentage when its running status is healthy; otherwise they retain the read-only sensor percentage. The protected pump never receives a commanded percentage. The GPU row uses NVIDIA's aggregate percentage and reads `Idle` when the driver reports 0%.
+Fan Monitor reads all sensor telemetry but deliberately omits Hugin's physically unused channels 3–6. It never writes pump or fan controls. The two motherboard fan-group rows show RPM and use the native controller's commanded percentage when its running status is healthy; otherwise they retain the read-only sensor percentage. The protected pump never receives a commanded percentage. The GPU row uses NVIDIA's aggregate percentage and reads `Idle` when the driver reports 0%.
 
-The Hugin fixture mirrors the live NCT6798D, four-DIMM SPD5118, CPU, and four-NVMe sensor shapes observed on 2026-08-16. The model accepts only the mapped NCT6798 `SYSTIN` reading; duplicate CPU inputs, unknown AUX inputs, zero-valued inputs, the observed 127°C artefact, and the currently unverified PCH input remain hidden.
+The Hugin fixture mirrors the live post-upgrade NCT6798D topology observed on 2026-08-20 together with the four-DIMM SPD5118, CPU, and NVMe sensor shapes. The model accepts only the mapped NCT6798 `SYSTIN` reading; duplicate CPU inputs, unknown AUX inputs, zero-valued inputs, the observed 127°C artefact, and the currently unverified PCH input remain hidden.
 
 Read-only display colors use the accepted Hugin boundaries: normal below 68°C, amber from 68°C, and urgent from 85°C. Separate hot, critical, and emergency model states preserve the 85°C, 90°C, and 95°C policy boundaries for later UI review.
 
